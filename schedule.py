@@ -15,44 +15,57 @@ class Schedule():
 		self.db.close()
 	
 	def next_at(self, htm, atm):
-		self.dbcursor.execute("SELECT * FROM games WHERE away=? and home=? and date(date_time) > date(?)", (atm.city, htm.city, "now"))
+		self.dbcursor.execute("SELECT * FROM games WHERE away=? AND home=? eAND date(date_time) > date(?)", (atm.city, htm.city, "\'now\'"))
 	        data = self.dbcursor.fetchone()
 		if data:
-			return ["%s@%s scheduled for %s and broadcasted on %s,XM%s" %(data[1], data[2], data[3].strftime("%x %I:%M %p"), data[4], data[5])]
+			return ["%s@%s scheduled for %s and broadcasted on %s" %(data[1], data[2], data[3].strftime("%x %I:%M %p"), data[4])]
 		else:
 			return ["No %s@%s games scheduled" %(atm.city, htm.city)]
 
 	def next(self, tm1, tm2):
-		self.dbcursor.execute("SELECT * FROM games WHERE ((away=? and home=?) or (away=? and home=?)) and date(date_time) > date(?)", (tm1.city, tm2.city, tm2.city, tm1.city, "now"))
+		self.dbcursor.execute("SELECT * FROM games WHERE ((away=? and home=?) OR (away=? AND home=?)) AND date(date_time) > date(?)", (tm1.city, tm2.city, tm2.city, tm1.city, "now"))
 	        data = self.dbcursor.fetchone()
 		if data:
-			return ["%s@%s scheduled for %s and broadcasted on %s,XM%s" %(data[1], data[2], data[3].strftime("%x %I:%M %p"), data[4], data[5])]
+			return ["%s@%s scheduled for %s and broadcasted on %s" %(data[1], data[2], data[3].strftime("%x %I:%M %p"), data[4])]
 		else:
 			return ["No %s/%s games scheduled" %(tm1.city, tm2.city)]
 
 	def today(self):
-		output = ["Today's Games:", "-" * 14]
-		self.dbcursor.execute("SELECT * FROM games WHERE date(date_time) = date(?)", ("now",))
+		output = ["Today's games:", "-" * 14]
+		self.dbcursor.execute("SELECT * FROM games WHERE date(date_time) = date(?)", ("\'now\'",))
 		data = self.dbcursor.fetchall()
+
 		for game in data:
-			output.append("%s@%s at %s broadcasting on %s,XM%s" %(game[1], game[2], game[3].strftime("%I:%M %p"), game[4], game[5]))
+			output.append("%s@%s at %s broadcasting on %s" %(game[1], game[2], game[3].strftime("%d %I:%M %p"), game[4]))
+
 
 		return output
 
 	def date(self, dt):
-		return "TODO:"
+		output = ["Games scheduled for %s:" %(dt.strftime("%x")), "-" * 30]
+		self.dbcursor.execute("SELECT * FROM games WHERE date(date_time) = date(?)", (dt,))
+		data = self.dbcursor.fetchall()
+		for game in data:
+			output.append("%s@%s at %s broadcasting on %s" %(game[1], game[2], game[3].strftime("%I:%M %p"), game[4]))
+
+		return output
 
 	def date_range(self, dt1, dt2):
-		return "TODO:"
+		output = ["Games schedule for %s-%s:" %(dt1.strftime("%x"), dt2.strftime("%x")), "-" * 36]
+		self.dbcursor.execute("SELECT * FROM games WHERE date(date_time) BETWEEN date(?) AND date(?)", (dt1, dt2))
+		data = self.dbcursor.fetchall()
+		for game in data:
+			output.append("%s@s at %s broadcasting on %s" %(game[1], game[2], game[3].strftime("%I:%M %p"), game[4]))
 
+		return output
 
 def fetch_schedule_data():
 	"""Returns a db object with the schedule data"""
 
-	if os.path.exists('schedule.db'): # we have a db, return the object
-		return sqlite3.connect('schedule.db', detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-	else: 
-		return create_db()
+	if not os.path.exists('schedule.db'): 
+		create_db()
+
+	return sqlite3.connect('schedule.db', detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 
 def create_db():
 	"""create the schedule db, populate it, write it, return it"""
@@ -64,15 +77,14 @@ def create_db():
 			home text, 
 			away text, 
 			date_time timestamp, 
-			network text, 
-			xm text)''')
+			network text)''')
 
 #	for tr in BeautifulSoup(open('scheduletest.html', 'r').read()).find('table').findAll('tr')[1:]:
 	for tr in fetch_html_data().find('table').findAll('tr')[1:]:
-		dbcursor.execute("INSERT INTO games values (null, ?, ?, ?, ?, ?)", extract_tds(tr.findAll('td')))
+		dbcursor.execute("INSERT INTO games values (null, ?, ?, ?, ?)", extract_tds(tr.findAll('td')))
 
 	db.commit()
-	return db
+	db.close()
 	
 def extract_tds(tds):
 	tds[0] = re.sub("&nbsp;", " ", tds[0].string)
@@ -119,7 +131,7 @@ def extract_tds(tds):
 
 	dt = datetime.strptime(tds[0] + " " + tds[3][:-3], "%a %b %d, %Y %I:%M %p")
 
-	return tds[1], tds[2], dt, tds[4], tds[5]
+	return tds[1], tds[2], dt, tds[4] + ",XM" + tds[5]
 	
 
 
@@ -136,11 +148,10 @@ def fetch_html_data():
 if __name__ == "__main__":
 
 	sched = Schedule()
-#	for blah in sched.dbcursor.execute("select * from games").fetchall():
-#		print blah
+	#for blah in sched.dbcursor.execute("select * from games").fetchall():
+	#	print blah
 	away = Team('mon')
 	home = Team('tam')
+#	print sched.dbcursor.execute("select date('now')").fetchone()
 	print sched.today()
-#	print sched.next(away, home)
-
-	
+#	print sched.date(datetime.strptime("11/29/09", "%m/%d/%y"))
