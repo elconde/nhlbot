@@ -1,3 +1,6 @@
+import Logger,logging
+logger=logging.getLogger()
+
 import urllib, urllib2, re, os.path, sqlite3, string
 from datetime import datetime
 from BeautifulSoup import BeautifulSoup
@@ -69,7 +72,7 @@ def fetch_schedule_data():
 
 def create_db():
 	"""create the schedule db, populate it, write it, return it"""
-
+	logger.info('Creating database')
 	db = sqlite3.connect('schedule.db')
 	dbcursor = db.cursor()
 	dbcursor.execute('''create table games 
@@ -146,7 +149,7 @@ def fetch_html_data():
 
 
 if __name__ == "__main__":
-
+	logger.setLevel(logging.DEBUG)
 	sched = Schedule()
 	#for blah in sched.dbcursor.execute("select * from games").fetchall():
 	#	print blah
