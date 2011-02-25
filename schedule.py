@@ -120,7 +120,7 @@ def extract_tds(tds):
 	match = finalregex.match(contents)
 	if not match: tds[4] = tds[4].string
 	else:
-		tds[4] = 'RESULT %s-%s' % match.groups()
+		tds[4] = 'RESULT %s_%s' % match.groups()
 		
 	
 	
@@ -153,11 +153,20 @@ def fetch_html_data():
 
 
 if __name__ == "__main__":
-	os.unlink('schedule.db')
+	#os.unlink('schedule.db')
+	import csv
+	fwrite = open('out.csv','w')
+	writer = csv.writer(fwrite,lineterminator='\n')
 	logger.setLevel(logging.DEBUG)
 	sched = Schedule()
 	for result in sched.dbcursor.execute('select date_time,home,away,result from games where result != ""').fetchall():
-		print result
+		result = list(result)
+		score = result[3]
+		score = score.split('_')
+		del result[3]
+		result.extend(score)
+		writer.writerow(result)
+	fwrite.close()
 	#for blah in sched.dbcursor.execute("select * from games").fetchall():
 	#	print blah
 	njd = Team('njd')
