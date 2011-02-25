@@ -139,13 +139,7 @@ def extract_tds(tds):
 
 
 def fetch_html_data():
-	curdate = datetime.now()
-	url_data = {}
-	url = 'http://www.nhl.com/ice/schedulebyseasonprint.htm'
-	url_data['season'] = str(curdate.year) + str(curdate.year + 1) #FIXME check for start of season
-	url_data['date'] = curdate.strftime("%d/%m/%Y")
-	url_data['gameType'] = '2'
-	return BeautifulSoup(urllib2.urlopen(url + '?' + urllib.urlencode(url_data)).read())
+	return BeautifulSoup(urllib2.urlopen('http://www.nhl.com/ice/schedulebyseasonprint.htm').read())
 
 
 if __name__ == "__main__":
