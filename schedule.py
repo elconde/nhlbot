@@ -7,7 +7,7 @@ from BeautifulSoup import BeautifulSoup
 from Team import Team
 
 tabnewlineregex = re.compile("\t|\n|&nbsp;(-&nbsp;)?", re.U)
-
+finalregex = re.compile('.*FINAL.*span.*\(([0-9]+)\).*span.*\(([0-9]+)\)')
 
 class Schedule():
 	def __init__(self):
@@ -79,12 +79,20 @@ def create_db():
 			(id integer primary key, 
 			home text, 
 			away text, 
-			date_time timestamp, 
+			date_time timestamp,
+			result text,
 			network text)''')
 
-#	for tr in BeautifulSoup(open('scheduletest.html', 'r').read()).find('table').findAll('tr')[1:]:
-	for tr in fetch_html_data().find('table').findAll('tr')[1:]:
-		dbcursor.execute("INSERT INTO games values (null, ?, ?, ?, ?)", extract_tds(tr.findAll('td')))
+	for tr in fetch_html_data().find('table').findAll('tr')[1:]:	
+		home,away,date_time,network = extract_tds(tr.findAll('td'))
+		# The column displays the results for past games and the networks for
+		# future games.
+		if network.upper().startswith('RESULT'):
+			result = network[7:]
+			network = ''
+		else:
+			result = ''
+		dbcursor.execute("INSERT INTO games values (null, ?, ?, ?, ?, ?)", (home,away,date_time,result,network))
 
 	db.commit()
 	db.close()
@@ -108,11 +116,14 @@ def extract_tds(tds):
 	else:
 		tds[3] = tds[3].findNext('div').string
 
-	if tds[4].string == None:
-		tds[4] = ''
+	contents = str(tds[4].contents)
+	match = finalregex.match(contents)
+	if not match: tds[4] = tds[4].string
 	else:
-		tds[4] = tds[4].string
-
+		tds[4] = 'RESULT %s-%s' % match.groups()
+		
+	
+	
 	if tds[5].string == None:
 		tds[5] = ''
 	else:
@@ -121,7 +132,6 @@ def extract_tds(tds):
 	# clean up data and return
 
 	tds = map(lambda x: re.sub(tabnewlineregex, "", x), tds)
-
 	tds[1] = string.capwords(tds[1], " ")
 	tds[2] = string.capwords(tds[2], " ")
 
@@ -134,7 +144,7 @@ def extract_tds(tds):
 
 	dt = datetime.strptime(tds[0] + " " + tds[3][:-3], "%a %b %d, %Y %I:%M %p")
 
-	return tds[1], tds[2], dt, tds[4] + ",XM" + tds[5]
+	return tds[1], tds[2], dt, tds[4] + tds[5]
 	
 
 
@@ -143,12 +153,15 @@ def fetch_html_data():
 
 
 if __name__ == "__main__":
+	os.unlink('schedule.db')
 	logger.setLevel(logging.DEBUG)
 	sched = Schedule()
+	for result in sched.dbcursor.execute('select date_time,home,away,result from games where result != ""').fetchall():
+		print result
 	#for blah in sched.dbcursor.execute("select * from games").fetchall():
 	#	print blah
-	away = Team('mon')
-	home = Team('tam')
-#	print sched.dbcursor.execute("select date('now')").fetchone()
-	print sched.today()
+	njd = Team('njd')
+	tam = Team('tam')
+	print sched.next(njd, tam)
+	#print sched.today()
 #	print sched.date(datetime.strptime("11/29/09", "%m/%d/%y"))
